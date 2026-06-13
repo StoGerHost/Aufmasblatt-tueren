@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Türblatt Aufmaß – Aufnahmeprotokoll</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --bg:            #F2F4F7;
+    --surface:       #FFFFFF;
+    --border:        #D2DAE3;
+    --border-strong: #8BA3BA;
+    --accent:        #001B43;
+    --accent-mid:    #1A2D44;
+    --accent-lt:     #EEF2F8;
+    --orange:        #D95E1F;
+    --text:          #1A2D44;
+    --muted:         #6B7A8D;
+    --check:         #001B43;
+    --field-bg:      #F8FAFB;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 24px 16px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* HEADER */
+  .doc-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: 16px;
+    background: #fff;
+    padding: 20px 24px 0;
+    border-radius: 6px 6px 0 0;
+  }
+  .hdr-bar-row { display: flex; gap: 5px; margin-bottom: 14px; }
+  .hdr-bar { width: 5px; border-radius: 2px; }
+  .hdr-bar.b1 { background: #001B43; height: 36px; }
+  .hdr-bar.b2 { background: #FFC72C; height: 26px; align-self: flex-end; }
+  .hdr-bar.b3 { background: #6B7A8D; height: 18px; align-self: flex-end; }
+  .hdr-titles { padding-bottom: 14px; }
+  .doc-header h1 { font-size: 19px; font-weight: 800; letter-spacing: -0.03em; color: var(--accent); }
+  .doc-header p { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .hdr-stripe { height: 3px; background: linear-gradient(90deg, #091636 0%, #577496 50%, #B8C8DC 100%); }
+  .header-ids { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; padding-bottom: 14px; }
+  .id-field { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); font-weight: 600; }
+  .id-field input {
+    background: var(--field-bg); border: 1.5px solid var(--border);
+    border-radius: 6px; color: var(--text); padding: 4px 9px;
+    font-size: 12px; width: 140px;
+  }
+  .id-field input:focus { outline: none; border-color: var(--accent); }
+  .id-field input::placeholder { color: var(--muted); opacity: 0.5; }
+
+  .form-wrapper {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: none; border-radius: 0 0 16px 16px; overflow: hidden;
+    box-shadow: 0 2px 12px rgba(26,45,68,0.10);
+  }
+
+  /* SECTIONS */
+  .section { border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-title {
+    background: var(--accent-lt); border-bottom: 2px solid var(--accent);
+    padding: 8px 20px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-mid);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title .num {
+    background: var(--orange); color: #fff; width: 20px; height: 20px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; flex-shrink: 0;
+  }
+  .section-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* FIELDS */
+  .field-row { display: grid; grid-template-columns: 200px 1fr; gap: 8px; align-items: center; min-height: 30px; }
+  .field-row.double { grid-template-columns: 200px 1fr 160px 1fr; }
+  .field-label { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
+  .field-input {
+    background: var(--field-bg); border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 5px 10px; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px;
+    color: var(--text); width: 100%; transition: border-color 0.15s;
+  }
+  .field-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(26,74,107,0.12); }
+  textarea.field-input { resize: vertical; min-height: 50px; }
+
+  /* GPS ROW */
+  .gps-row {
+    display: grid; grid-template-columns: 200px 1fr auto; gap: 8px; align-items: center; min-height: 30px;
+  }
+  .gps-btn {
+    display: flex; align-items: center; gap: 5px; padding: 5px 12px;
+    background: var(--accent); color: #fff; border: none; border-radius: 6px;
+    font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;
+    transition: background 0.15s; letter-spacing: 0.02em;
+  }
+  .gps-btn:hover { background: #091636; }
+  .gps-btn:disabled { background: var(--border-strong); cursor: not-allowed; }
+  .gps-status { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .gps-coords { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); }
+
+  /* CHECKBOXES */
+  .check-group { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+  .check-item { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 12px; color: var(--text); user-select: none; }
+  .check-item input[type="checkbox"] {
+    appearance: none; width: 15px; height: 15px; border: 2px solid var(--border-strong);
+    border-radius: 2px; cursor: pointer; flex-shrink: 0; position: relative; transition: background 0.1s, border-color 0.1s;
+  }
+  .check-item input[type="checkbox"]:checked { background: var(--check); border-color: var(--check); }
+  .check-item input[type="checkbox"]:checked::after {
+    content: ''; position: absolute; left: 2px; top: -1px; width: 7px; height: 11px;
+    border: 2px solid #fff; border-top: none; border-left: none; transform: rotate(45deg);
+  }
+  .check-item input[type="radio"] {
+    appearance: none; width: 15px; height: 15px; border: 2px solid var(--border-strong);
+    border-radius: 50%; cursor: pointer; flex-shrink: 0; position: relative; transition: background 0.1s, border-color 0.1s;
+  }
+  .check-item input[type="radio"]:checked { border-color: var(--check); }
+  .check-item input[type="radio"]:checked::after {
+    content: ''; position: absolute; left: 2px; top: 2px; width: 7px; height: 7px;
+    background: var(--check); border-radius: 50%;
+  }
+
+  /* MASS TABLES */
+  .mass-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0; }
+  .mass-group { border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin: 6px; }
+  .mass-group-title { background: #EEF2F8; padding: 5px 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .mass-row { display: grid; grid-template-columns: 1fr 90px 32px; align-items: center; padding: 4px 10px; border-bottom: 1px solid #F0EDE8; }
+  .mass-row:last-child { border-bottom: none; }
+  .mass-row:nth-child(even) { background: var(--field-bg); }
+  .mass-label { font-size: 11px; color: var(--text); }
+  .mass-abbr { font-size: 10px; color: var(--muted); }
+  .mass-input {
+    background: none; border: none; border-bottom: 1.5px solid var(--border);
+    padding: 2px 4px; font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    font-weight: 500; color: var(--orange); text-align: right; width: 80px; transition: border-color 0.15s;
+  }
+  .mass-input:focus { outline: none; border-bottom-color: var(--orange); }
+  .mass-unit { font-size: 10px; color: var(--muted); padding-left: 3px; }
+
+  /* DIN SVG CARDS */
+  .din-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 4px; }
+  .din-card {
+    border: 2px solid var(--border); border-radius: 8px; overflow: hidden;
+    cursor: pointer; transition: border-color 0.18s, box-shadow 0.18s;
+    background: #fff;
+  }
+  .din-card:hover { border-color: #3A7AAB; }
+  .din-card.selected { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(217,94,31,0.15); }
+  .din-card-header {
+    background: var(--accent-lt); padding: 8px 14px; display: flex;
+    align-items: center; gap: 10px; border-bottom: 1px solid var(--border);
+  }
+  .din-card-header input[type="radio"] { flex-shrink: 0; }
+  .din-card-header strong { font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 0.01em; }
+  .din-svg-wrap { padding: 14px 20px; background: #fff; display: flex; justify-content: center; }
+  .din-svg-wrap svg { width: 100%; max-width: 200px; height: auto; }
+  .din-caption { padding: 7px 14px; font-size: 10px; color: var(--muted); background: var(--field-bg); border-top: 1px solid var(--border); line-height: 1.5; }
+
+  /* SKETCH */
+  .sketch-area {
+    border: 1.5px dashed var(--border-strong); border-radius: 6px;
+    background: repeating-linear-gradient(0deg, transparent, transparent 24px, #E8E5DF 24px, #E8E5DF 25px),
+    repeating-linear-gradient(90deg, transparent, transparent 24px, #E8E5DF 24px, #E8E5DF 25px);
+    background-color: #FAFAF8; min-height: 200px;
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  .sketch-hint { color: var(--muted); font-size: 12px; text-align: center; pointer-events: none; }
+  .sketch-hint svg { display: block; margin: 0 auto 6px; opacity: 0.4; }
+
+  /* FOTO */
+  .foto-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .foto-slot {
+    border: 1.5px dashed var(--border-strong); border-radius: 5px; background: var(--field-bg);
+    aspect-ratio: 4/3; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    position: relative; overflow: hidden;
+  }
+  .foto-slot:hover { border-color: var(--accent); background: var(--accent-lt); }
+  .foto-slot label { font-size: 10px; color: var(--muted); text-align: center; padding: 0 8px; cursor: pointer; }
+  .foto-slot .icon { font-size: 22px; opacity: 0.4; }
+  .foto-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .foto-slot input[type="file"] { display: none; }
+
+  /* SIGN */
+  .sign-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px; }
+  .sign-box { border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--field-bg); }
+  .sign-box label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); display: block; margin-bottom: 8px; }
+  .sign-line { border-top: 1.5px solid var(--border-strong); margin-top: 40px; padding-top: 4px; font-size: 10px; color: var(--muted); }
+
+  /* FOOTER */
+  .doc-footer {
+    padding: 10px 20px; background: var(--accent-lt); border-top: 2px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--muted);
+  }
+
+  /* ACTIONS */
+  .actions { position: fixed; bottom: 20px; right: 20px; display: flex; gap: 8px; z-index: 100; }
+  .btn {
+    padding: 10px 18px; border-radius: 5px; border: none;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15); transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .btn:active { transform: translateY(1px); box-shadow: 0 1px 6px rgba(0,0,0,0.12); }
+  .btn-primary { background: var(--accent); color: #fff; border-radius: 10px; }
+  .btn-primary:hover { background: #091636; }
+  .btn-secondary { background: #fff; color: var(--text); border: 1.5px solid var(--border); border-radius: 10px; }
+  .btn-secondary:hover { background: var(--field-bg); }
+  .btn-export { background: var(--orange); color: #fff; border-radius: 10px; font-weight: 700; }
+  .btn-export:hover { background: #A84815; }
+
+  .divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+  /* PDF EXPORT OVERLAY */
+  #export-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    z-index: 999; align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+  }
+  #export-overlay.active { display: flex; }
+  .export-box {
+    background: #fff; border-radius: 10px; padding: 32px 40px; text-align: center;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+  }
+  .export-box h3 { font-size: 15px; color: var(--accent-mid); font-weight: 800; margin-bottom: 8px; }
+  .export-box p { font-size: 12px; color: var(--muted); }
+  .spinner {
+    width: 36px; height: 36px; border: 3px solid var(--border);
+    border-top-color: var(--orange); border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 16px auto 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 640px) {
+    .field-row { grid-template-columns: 1fr; }
+    .field-row.double { grid-template-columns: 1fr; }
+    .gps-row { grid-template-columns: 1fr; }
+    .foto-grid { grid-template-columns: repeat(2,1fr); }
+    .din-grid { grid-template-columns: 1fr; }
+    .sign-grid { grid-template-columns: 1fr; }
+    .doc-header { grid-template-columns: 1fr; }
+    .header-ids { align-items: flex-start; }
+    .mass-grid { grid-template-columns: 1fr; }
+  }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .actions { display: none; }
+    .doc-header { border-radius: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .form-wrapper { border-radius: 0; border: none; }
+    .section-title { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PDF EXPORT OVERLAY -->
+<div id="export-overlay">
+  <div class="export-box">
+    <h3>PDF wird erstellt …</h3>
+    <p>Wasserzeichen wird eingefügt</p>
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="doc-header">
+  <div class="hdr-titles">
+    <div class="hdr-bar-row">
+      <div class="hdr-bar b1"></div>
+      <div class="hdr-bar b2"></div>
+      <div class="hdr-bar b3"></div>
+    </div>
+    <h1>Türblatt Aufmaß</h1>
+    <p>Aufnahmeprotokoll für Baustelle</p>
+  </div>
+  <div class="header-ids">
+    <div class="id-field">
+      <span>Auftrags-Nr.</span>
+      <input type="text" placeholder="z. B. 2026-0042">
+    </div>
+    <div class="id-field">
+      <span>Pos.-Nr.</span>
+      <input type="text" placeholder="z. B. 04">
+    </div>
+  </div>
+</div>
+<div class="hdr-stripe"></div>
+
+<div class="form-wrapper" id="main-form">
+
+  <!-- 1 ALLGEMEINE INFORMATIONEN -->
+  <div class="section">
+    <div class="section-title"><span class="num">1</span> Allgemeine Informationen</div>
+    <div class="section-body">
+      <div class="field-row">
+        <span class="field-label">Projekt / Bauvorhaben</span>
+        <input class="field-input" id="field-projekt" type="text" placeholder="z. B. Neubau Musterstraße 12">
+      </div>
+      <!-- GPS ADDRESS ROW -->
+      <div class="gps-row">
+        <span class="field-label">Baustellen-Adresse</span>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <input class="field-input" id="field-adresse" type="text" placeholder="Straße, PLZ, Ort – oder GPS ermitteln →">
+          <div class="gps-status" id="gps-status"></div>
+        </div>
+        <button class="gps-btn" id="gps-btn" onclick="getGPS()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" stroke-opacity="0.3"/></svg>
+          GPS
+        </button>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Kunde / Auftraggeber</span>
+        <input class="field-input" type="text" placeholder="Firma oder Privatperson">
+      </div>
+      <div class="field-row">
+        <span class="field-label">Ansprechpartner</span>
+        <input class="field-input" type="text" placeholder="Name, Telefon">
+      </div>
+      <div class="field-row double">
+        <span class="field-label">Datum</span>
+        <input class="field-input" id="field-datum" type="date">
+        <span class="field-label">Aufgenommen von</span>
+        <input class="field-input" type="text" placeholder="Name">
+      </div>
+      <div class="field-row double">
+        <span class="field-label">Etage / Bereich</span>
+        <input class="field-input" type="text" placeholder="z. B. EG, 1.OG, Keller">
+        <span class="field-label">Raumbezeichnung</span>
+        <input class="field-input" type="text" placeholder="z. B. Büro, Flur, WC">
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 TÜRART -->
+  <div class="section">
+    <div class="section-title"><span class="num">2</span> Türart &amp; Nutzung</div>
+    <div class="section-body">
+      <div class="field-row">
+        <span class="field-label">Türart</span>
+        <div class="check-group">
+          <label class="check-item"><input type="radio" name="tuerart"> Innentür</label>
+          <label class="check-item"><input type="radio" name="tuerart"> Außentür</label>
+          <label class="check-item"><input type="radio" name="tuerart"> Hauseingang</label>
+        </div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Brandschutz</span>
+        <div class="check-group">
+          <label class="check-item"><input type="radio" name="brand"> Keine</label>
+          <label class="check-item"><input type="radio" name="brand"> T30-1 / EI2 30</label>
+          <label class="check-item"><input type="radio" name="brand"> T60 / EI2 60</label>
+          <label class="check-item"><input type="radio" name="brand"> T90 / EI2 90</label>
+        </div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Rauchschutz</span>
+        <div class="check-group">
+          <label class="check-item"><input type="radio" name="rauch"> Keine</label>
+          <label class="check-item"><input type="radio" name="rauch"> RS (EN 1634-3)</label>
+          <label class="check-item"><input type="radio" name="rauch"> RS + Dichtung</label>
+        </div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Schallschutz</span>
+        <div class="check-group">
+          <label class="check-item"><input type="radio" name="schall"> Keine</label>
+          <label class="check-item"><input type="radio" name="schall"> Rw 32 dB</label>
+          <label class="check-item"><input type="radio" name="schall"> Rw 37 dB</label>
+          <label class="check-item"><input type="radio" name="schall"> Rw 42 dB</label>
+        </div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Türflügel</span>
+        <div class="check-group">
+          <label class="check-item"><input type="radio" name="fluegel"> 1-flügelig</label>
+          <label class="check-item"><input type="radio" name="fluegel"> 2-flügelig (gleichwertig)</label>
+          <label class="check-item"><input type="radio" name="fluegel"> 2-flügelig (ungleich)</label>
+        </div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Sonstige Angaben</span>
+        <input class="field-input" type="text" placeholder="z. B. Glasausschnitt, Lüftungsgitter …">
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 ANSCHLAG / ÖFFNUNGSRICHTUNG -->
+  <div class="section">
+    <div class="section-title"><span class="num">3</span> Anschlag / Öffnungsrichtung</div>
+    <div class="section-body">
+      <div class="field-row">
+        <span class="field-label">Anschlagart</span>
+        <div class="check-group">
+          <label class="check-item"><input type="radio" name="anschlag"> Normalanschlag</label>
+          <label class="check-item"><input type="radio" name="anschlag"> Gegenfalz-Anschlag</label>
+          <label class="check-item"><input type="radio" name="anschlag"> Stumpf einschlagend</label>
+        </div>
+      </div>
+
+      <!-- DIN SVG CARDS -->
+      <div class="din-grid">
+
+        <!-- DIN LINKS -->
+        <div class="din-card" id="din-l" onclick="selectDIN('L')">
+          <div class="din-card-header">
+            <input type="radio" name="din" value="L" id="r-din-l">
+            <strong>DIN Links (DIN L)</strong>
+          </div>
+          <div class="din-svg-wrap">
+            <svg viewBox="0 0 160 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DIN Links Schemazeichnung">
+              <!-- Wandöffnung -->
+              <rect x="10" y="10" width="140" height="180" rx="2" fill="#F0EDE8" stroke="#C8C4BB" stroke-width="1.5"/>
+              <!-- Türblatt -->
+              <rect x="24" y="18" width="90" height="164" rx="2" fill="#DDEAF3" stroke="#001B43" stroke-width="2"/>
+              <!-- Türblatt Schraffur oben/unten (Orientierung) -->
+              <rect x="24" y="18" width="90" height="8" fill="#001B43" opacity="0.12"/>
+              <rect x="24" y="174" width="90" height="8" fill="#001B43" opacity="0.12"/>
+              <!-- Band links (3 Bänder) -->
+              <rect x="18" y="30" width="12" height="18" rx="1" fill="#001B43"/>
+              <rect x="18" y="91" width="12" height="18" rx="1" fill="#001B43"/>
+              <rect x="18" y="152" width="12" height="18" rx="1" fill="#001B43"/>
+              <!-- Band-Verbindung zur Zarge -->
+              <line x1="10" y1="39" x2="18" y2="39" stroke="#001B43" stroke-width="2"/>
+              <line x1="10" y1="100" x2="18" y2="100" stroke="#001B43" stroke-width="2"/>
+              <line x1="10" y1="161" x2="18" y2="161" stroke="#001B43" stroke-width="2"/>
+              <!-- Drücker rechts -->
+              <circle cx="106" cy="100" r="5" fill="#001B43"/>
+              <rect x="111" y="97" width="14" height="6" rx="3" fill="#001B43"/>
+              <!-- Schloss -->
+              <rect x="110" y="88" width="6" height="24" rx="1" fill="none" stroke="#001B43" stroke-width="1.5"/>
+              <!-- Schwenkbogen (öffnet nach rechts/oben) -->
+              <path d="M114 18 A90 90 0 0 1 114 182" fill="none" stroke="#001B43" stroke-width="1" stroke-dasharray="5 3" opacity="0.4"/>
+              <!-- Öffnungspfeil -->
+              <path d="M114 100 Q148 60 148 18" fill="none" stroke="#001B43" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr-l)"/>
+              <defs>
+                <marker id="arr-l" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                  <path d="M0,0 L8,4 L0,8 Z" fill="#001B43"/>
+                </marker>
+              </defs>
+              <!-- Label Band -->
+              <text x="6" y="8" font-family="IBM Plex Sans, sans-serif" font-size="8" fill="#6B6863" font-weight="600">BAND</text>
+              <!-- Label Griff -->
+              <text x="118" y="108" font-family="IBM Plex Sans, sans-serif" font-size="8" fill="#001B43">Griff</text>
+              <!-- Label Öffnung -->
+              <text x="130" y="55" font-family="IBM Plex Sans, sans-serif" font-size="7.5" fill="#001B43" opacity="0.7">öffnet</text>
+            </svg>
+          </div>
+          <div class="din-caption">
+            <strong>Bänder links · Griff rechts</strong><br>
+            Ansicht von der Bedienseite · Tür öffnet von sich weg
+          </div>
+        </div>
+
+        <!-- DIN RECHTS -->
+        <div class="din-card" id="din-r" onclick="selectDIN('R')">
+          <div class="din-card-header">
+            <input type="radio" name="din" value="R" id="r-din-r">
+            <strong>DIN Rechts (DIN R)</strong>
+          </div>
+          <div class="din-svg-wrap">
+            <svg viewBox="0 0 160 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DIN Rechts Schemazeichnung">
+              <!-- Wandöffnung -->
+              <rect x="10" y="10" width="140" height="180" rx="2" fill="#F0EDE8" stroke="#C8C4BB" stroke-width="1.5"/>
+              <!-- Türblatt -->
+              <rect x="46" y="18" width="90" height="164" rx="2" fill="#DDEAF3" stroke="#001B43" stroke-width="2"/>
+              <rect x="46" y="18" width="90" height="8" fill="#001B43" opacity="0.12"/>
+              <rect x="46" y="174" width="90" height="8" fill="#001B43" opacity="0.12"/>
+              <!-- Band rechts (3 Bänder) -->
+              <rect x="130" y="30" width="12" height="18" rx="1" fill="#001B43"/>
+              <rect x="130" y="91" width="12" height="18" rx="1" fill="#001B43"/>
+              <rect x="130" y="152" width="12" height="18" rx="1" fill="#001B43"/>
+              <!-- Band-Verbindung zur Zarge -->
+              <line x1="142" y1="39" x2="150" y2="39" stroke="#001B43" stroke-width="2"/>
+              <line x1="142" y1="100" x2="150" y2="100" stroke="#001B43" stroke-width="2"/>
+              <line x1="142" y1="161" x2="150" y2="161" stroke="#001B43" stroke-width="2"/>
+              <!-- Drücker links -->
+              <circle cx="54" cy="100" r="5" fill="#001B43"/>
+              <rect x="35" y="97" width="14" height="6" rx="3" fill="#001B43"/>
+              <!-- Schloss -->
+              <rect x="44" y="88" width="6" height="24" rx="1" fill="none" stroke="#001B43" stroke-width="1.5"/>
+              <!-- Schwenkbogen -->
+              <path d="M46 18 A90 90 0 0 0 46 182" fill="none" stroke="#001B43" stroke-width="1" stroke-dasharray="5 3" opacity="0.4"/>
+              <!-- Öffnungspfeil -->
+              <path d="M46 100 Q12 60 12 18" fill="none" stroke="#001B43" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr-r)"/>
+              <defs>
+                <marker id="arr-r" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                  <path d="M0,0 L8,4 L0,8 Z" fill="#001B43"/>
+                </marker>
+              </defs>
+              <!-- Label Band -->
+              <text x="133" y="8" font-family="IBM Plex Sans, sans-serif" font-size="8" fill="#6B6863" font-weight="600">BAND</text>
+              <!-- Label Griff -->
+              <text x="22" y="108" font-family="IBM Plex Sans, sans-serif" font-size="8" fill="#001B43">Griff</text>
+              <!-- Label Öffnung -->
+              <text x="8" y="55" font-family="IBM Plex Sans, sans-serif" font-size="7.5" fill="#001B43" opacity="0.7">öffnet</text>
+            </svg>
+          </div>
+          <div class="din-caption">
+            <strong>Bänder rechts · Griff links</strong><br>
+            Ansicht von der Bedienseite · Tür öffnet von sich weg
+          </div>
+        </div>
+
+      </div>
+
+      <div class="field-row" style="margin-top:8px;">
+        <span class="field-label">Bemerkung / Lage</span>
+        <input class="field-input" type="text" placeholder="Freihand-Hinweis zur Raumlage …">
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 MASSE -->
+  <div class="section">
+    <div class="section-title"><span class="num">4</span> Maße <span style="font-size:10px;font-weight:400;margin-left:4px;">(alle Angaben in mm)</span></div>
+    <div class="section-body" style="padding:12px 14px;">
+      <div class="mass-grid">
+        <div class="mass-group">
+          <div class="mass-group-title">Türblatt</div>
+          <div class="mass-row"><span class="mass-label">Breite <span class="mass-abbr">(B)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Höhe <span class="mass-abbr">(H)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Dicke <span class="mass-abbr">(D)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+        </div>
+        <div class="mass-group">
+          <div class="mass-group-title">Falzmaße</div>
+          <div class="mass-row"><span class="mass-label">Falzbreite <span class="mass-abbr">(FB)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Falztiefe <span class="mass-abbr">(FT)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Bandfalzbreite</span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Schlossfachbreite</span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+        </div>
+        <div class="mass-group">
+          <div class="mass-group-title">Zargenmaße</div>
+          <div class="mass-row"><span class="mass-label">Zargenbreite <span class="mass-abbr">(ZB)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Zargenhöhe <span class="mass-abbr">(ZH)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Zargenstärke <span class="mass-abbr">(ZS)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Mauerstärke <span class="mass-abbr">(MS)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Rohmaß Breite <span class="mass-abbr">(R-B)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Rohmaß Höhe <span class="mass-abbr">(R-H)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+        </div>
+        <div class="mass-group">
+          <div class="mass-group-title">Bandabstände</div>
+          <div class="mass-row"><span class="mass-label">Oberes Band <span class="mass-abbr">(von OK)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Mittleres Band</span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Unteres Band <span class="mass-abbr">(von UK)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
+          <div class="mass-row"><span class="mass-label">Anzahl Bänder</span><input class="mass-input" type="number" placeholder="—" min="1" max="6"><span class="mass-unit">Stk.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 BESCHLÄGE -->
+  <div class="section">
+    <div class="section-title"><span class="num">5</span> Beschläge</div>
+    <div class="section-body">
+      <div class="field-row">
+        <span class="field-label">Bandtyp</span>
+        <div class="check-group">
+          <label class="check-item"><input type="radio" name="band"> Bettleband</label>
+          <label class="check-item"><input type="radio" name="band"> Rollenband</label>
+          <label class="check-item"><input type="radio" name="band"> Verdecktband</label>
+          <label class="check-item"><input type="radio" name="band"> Klotzband</label>
+        </div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Band-Fabrikat / Typ</span>
+        <input class="field-input" type="text" placeholder="z. B. Simonswerk TECTUS, Dorma …">
+      </div>
+      <div class="divider"></div>
+      <div class="field-row">
+        <span class="field-label">Schlossbauart</span>
+        <div class="check-group">
+          <label class="check-item"><input type="radio" name="schloss"> Einsteckschloss</label>
+          <label class="check-item"><input type="radio" name="schloss"> Panikschloss</label>
+          <label class="check-item"><input type="radio" name="schloss"> Riegelschloss</label>
+          <label class="check-item"><input type="radio" name="schloss"> Magnetschloss</label>
+        </div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Schloss-Fabrikat / Typ</span>
+        <input class="field-input" type="text" placeholder="z. B. Wilka, ASSA ABLOY …">
+      </div>
+      <div class="field-row double">
+        <span class="field-label">Dorn-Maß</span>
+        <input class="field-input" type="number" placeholder="—" style="max-width:100px;">
+        <span class="field-label">Stulphöhe</span>
+        <input class="field-input" type="number" placeholder="—" style="max-width:100px;">
+      </div>
+      <div class="divider"></div>
+      <div class="field-row">
+        <span class="field-label">Drückergarnitur</span>
+        <div class="check-group">
+          <label class="check-item"><input type="radio" name="druecker"> Langschild</label>
+          <label class="check-item"><input type="radio" name="druecker"> Kurzschild</label>
+          <label class="check-item"><input type="radio" name="druecker"> Rosettengarnitur</label>
+        </div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Drücker-Fabrikat / Typ</span>
+        <input class="field-input" type="text" placeholder="z. B. FSB 1076, Hoppe Amsterdam …">
+      </div>
+      <div class="divider"></div>
+      <div class="field-row">
+        <span class="field-label">Schließzylinder</span>
+        <div class="check-group">
+          <label class="check-item"><input type="radio" name="zylinder"> Profilzylinder</label>
+          <label class="check-item"><input type="radio" name="zylinder"> Halbzylinder</label>
+          <label class="check-item"><input type="radio" name="zylinder"> Blindzylinder</label>
+          <label class="check-item"><input type="radio" name="zylinder"> Keiner</label>
+        </div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Schließanlage / Gruppe</span>
+        <input class="field-input" type="text" placeholder="z. B. MK1, Generalschließung …">
+      </div>
+      <div class="field-row">
+        <span class="field-label">Türschließer</span>
+        <div class="check-group">
+          <label class="check-item"><input type="radio" name="schliess"> Kein</label>
+          <label class="check-item"><input type="radio" name="schliess"> Obenband-Türschließer</label>
+          <label class="check-item"><input type="radio" name="schliess"> Eingebaut (i. Blatt)</label>
+          <label class="check-item"><input type="radio" name="schliess"> Bodenanker</label>
+        </div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Sonstige Beschläge</span>
+        <input class="field-input" type="text" placeholder="z. B. Wandpuffer, Koordinator, Fingerschutz …">
+      </div>
+    </div>
+  </div>
+
+  <!-- 6 SKIZZE -->
+  <div class="section">
+    <div class="section-title"><span class="num">6</span> Skizze &amp; Maßeintragung</div>
+    <div class="section-body">
+      <div class="sketch-area" id="sketchArea">
+        <div class="sketch-hint">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+          Freihand-Zeichenfläche<br><small>Surface Pen / Stylus · Foto einfügen</small>
+        </div>
+        <input type="file" id="sketchFile" accept="image/*" style="display:none" onchange="loadSketch(event)">
+      </div>
+      <button class="btn btn-secondary" style="margin-top:6px;font-size:11px;padding:6px 14px;box-shadow:none;" onclick="document.getElementById('sketchFile').click()">
+        📎 Skizze als Bild laden
+      </button>
+    </div>
+  </div>
+
+  <!-- 7 FOTODOKUMENTATION -->
+  <div class="section">
+    <div class="section-title"><span class="num">7</span> Fotodokumentation</div>
+    <div class="section-body">
+      <div class="foto-grid">
+        <div class="foto-slot" onclick="triggerFile(this)">
+          <div class="icon">📷</div><label>Bandseite</label>
+          <input type="file" accept="image/*" onchange="loadFoto(event, this.parentElement)">
+        </div>
+        <div class="foto-slot" onclick="triggerFile(this)">
+          <div class="icon">📷</div><label>Schlossseite</label>
+          <input type="file" accept="image/*" onchange="loadFoto(event, this.parentElement)">
+        </div>
+        <div class="foto-slot" onclick="triggerFile(this)">
+          <div class="icon">📷</div><label>Schlosshöhe / Detail</label>
+          <input type="file" accept="image/*" onchange="loadFoto(event, this.parentElement)">
+        </div>
+        <div class="foto-slot" onclick="triggerFile(this)">
+          <div class="icon">📷</div><label>Zargenanschluss oben</label>
+          <input type="file" accept="image/*" onchange="loadFoto(event, this.parentElement)">
+        </div>
+        <div class="foto-slot" onclick="triggerFile(this)">
+          <div class="icon">📷</div><label>Zargenanschluss unten</label>
+          <input type="file" accept="image/*" onchange="loadFoto(event, this.parentElement)">
+        </div>
+        <div class="foto-slot" onclick="triggerFile(this)">
+          <div class="icon">📷</div><label>Schäden / Besonderheiten</label>
+          <input type="file" accept="image/*" onchange="loadFoto(event, this.parentElement)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8 ABSCHLUSS -->
+  <div class="section">
+    <div class="section-title"><span class="num">8</span> Abschluss &amp; Unterschrift</div>
+    <div class="section-body">
+      <div class="field-row">
+        <span class="field-label">Prüfung</span>
+        <div class="check-group">
+          <label class="check-item"><input type="checkbox"> Alle Maße geprüft</label>
+          <label class="check-item"><input type="checkbox"> Fotos vorhanden</label>
+          <label class="check-item"><input type="checkbox"> Checkliste vollständig</label>
+        </div>
+      </div>
+      <div class="field-row">
+        <span class="field-label">Bemerkungen</span>
+        <textarea class="field-input" rows="3" placeholder="Freitext, Rückfragen, Auffälligkeiten …"></textarea>
+      </div>
+      <div class="sign-grid">
+        <div class="sign-box">
+          <label>Aufgenommen von</label>
+          <div class="sign-line">Name, Unterschrift, Datum</div>
+        </div>
+        <div class="sign-box">
+          <label>Bestätigt durch Auftraggeber</label>
+          <div class="sign-line">Name, Unterschrift, Datum</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="doc-footer">
+    <span>Türblatt Aufmaß · Aufnahmeprotokoll · Version 1.0 &nbsp;·&nbsp; Created by M.G.</span>
+    <span id="footer-date"></span>
+  </div>
+
+</div>
+
+<!-- FLOATING ACTIONS -->
+<div class="actions">
+  <button class="btn btn-export" onclick="exportPDF()">⬇ PDF exportieren</button>
+</div>
+
+<script>
+// ── INIT ──────────────────────────────────────────────
+document.getElementById('footer-date').textContent =
+  new Date().toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'numeric'});
+// Set today's date
+const d = new Date();
+document.getElementById('field-datum').value =
+  d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+
+// ── DIN SELECTION ─────────────────────────────────────
+function selectDIN(side) {
+  document.getElementById('din-l').classList.toggle('selected', side === 'L');
+  document.getElementById('din-r').classList.toggle('selected', side === 'R');
+  document.getElementById('r-din-' + side.toLowerCase()).checked = true;
+}
+
+// ── PHOTO UPLOAD ──────────────────────────────────────
+function triggerFile(slot) { slot.querySelector('input[type="file"]').click(); }
+function loadFoto(event, slot) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  let img = slot.querySelector('img');
+  if (!img) { img = document.createElement('img'); slot.appendChild(img); }
+  img.src = url;
+  slot.querySelector('.icon').style.display = 'none';
+  slot.querySelector('label').style.display = 'none';
+}
+
+// ── SKETCH UPLOAD ─────────────────────────────────────
+function loadSketch(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const area = document.getElementById('sketchArea');
+  area.style.backgroundImage = `url(${url})`;
+  area.style.backgroundSize = 'contain';
+  area.style.backgroundRepeat = 'no-repeat';
+  area.style.backgroundPosition = 'center';
+  area.querySelector('.sketch-hint').style.display = 'none';
+}
+
+// ── GPS LOKALISIERUNG ─────────────────────────────────
+function getGPS() {
+  const btn = document.getElementById('gps-btn');
+  const status = document.getElementById('gps-status');
+  const adresse = document.getElementById('field-adresse');
+
+  if (!navigator.geolocation) {
+    status.textContent = '⚠ GPS nicht verfügbar in diesem Browser.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="animation:spin 0.8s linear infinite"><circle cx="12" cy="12" r="10"/></svg> Ortung …`;
+  status.textContent = 'Standort wird ermittelt …';
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lon = pos.coords.longitude.toFixed(6);
+      const acc = Math.round(pos.coords.accuracy);
+
+      status.innerHTML = `<span class="gps-coords">📍 ${lat}, ${lon} (±${acc} m)</span>`;
+
+      // Reverse geocoding via OpenStreetMap Nominatim (no API key needed)
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&accept-language=de`,
+          { headers: { 'User-Agent': 'TuerblattAufmass/1.0' } }
+        );
+        const data = await res.json();
+        const a = data.address;
+        const parts = [
+          a.road && a.house_number ? `${a.road} ${a.house_number}` : a.road,
+          a.postcode,
+          a.city || a.town || a.village || a.municipality
+        ].filter(Boolean);
+        const adresseStr = parts.join(', ');
+        adresse.value = adresseStr;
+        status.innerHTML = `<span class="gps-coords">📍 ${lat}, ${lon} (±${acc} m) · Adresse übernommen</span>`;
+      } catch(e) {
+        adresse.value = `${lat}, ${lon}`;
+        status.innerHTML = `<span class="gps-coords">📍 ${lat}, ${lon} (±${acc} m) · Koordinaten eingetragen</span>`;
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" stroke-opacity="0.3"/></svg> GPS`;
+    },
+    (err) => {
+      const msgs = {1:'Zugriff verweigert – bitte GPS erlauben.', 2:'Standort nicht ermittelbar.', 3:'Zeitüberschreitung.'};
+      status.textContent = '⚠ ' + (msgs[err.code] || 'Fehler bei GPS-Ortung.');
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" stroke-opacity="0.3"/></svg> GPS`;
+    },
+    { timeout: 12000, maximumAge: 0, enableHighAccuracy: true }
+  );
+}
+
+// ── PDF EXPORT MIT WASSERZEICHEN ──────────────────────
+async function exportPDF() {
+  const overlay = document.getElementById('export-overlay');
+  overlay.classList.add('active');
+
+  // Hide action buttons during capture
+  document.querySelector('.actions').style.display = 'none';
+
+  try {
+    const form = document.getElementById('main-form');
+    const header = document.querySelector('.doc-header');
+
+    // Capture header
+    const canvasHeader = await html2canvas(header, { scale: 2, useCORS: true, backgroundColor: '#1A4A6B' });
+    // Capture form body
+    const canvasForm = await html2canvas(form, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    const pageW = 210;
+    const pageH = 297;
+    const margin = 10;
+    const contentW = pageW - margin * 2;
+
+    // Add header image
+    const headerH = (canvasHeader.height / canvasHeader.width) * contentW;
+    pdf.addImage(canvasHeader.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, contentW, Math.min(headerH, 30));
+
+    // Add form body – paginate if needed
+    const formData = canvasForm.toDataURL('image/jpeg', 0.92);
+    const totalFormH = (canvasForm.height / canvasForm.width) * contentW;
+    const startY = margin + Math.min(headerH, 30) + 3;
+    const availH = pageH - startY - margin;
+
+    if (totalFormH <= availH) {
+      pdf.addImage(formData, 'JPEG', margin, startY, contentW, totalFormH);
+    } else {
+      // Multi-page: slice canvas into pages safely
+      const pxPerMm = canvasForm.width / contentW;
+      let yPx = 0;
+      let firstPage = true;
+      while (yPx < canvasForm.height) {
+        const sliceAvailH = firstPage ? availH : (pageH - margin * 2);
+        const maxSliceHpx = Math.floor(sliceAvailH * pxPerMm);
+        const remainingPx = canvasForm.height - yPx;
+        const sliceHpx = Math.min(maxSliceHpx, remainingPx);
+        if (sliceHpx <= 0) break; // safety guard
+
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvasForm.width;
+        sliceCanvas.height = Math.max(1, Math.floor(sliceHpx));
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(canvasForm, 0, -Math.floor(yPx), canvasForm.width, canvasForm.height);
+        const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+        const sliceHmm = sliceCanvas.height / pxPerMm;
+        if (!firstPage) { pdf.addPage(); }
+        const yPos = firstPage ? startY : margin;
+        pdf.addImage(sliceData, 'JPEG', margin, yPos, contentW, sliceHmm);
+        yPx += sliceCanvas.height;
+        firstPage = false;
+      }
+    }
+
+    // ── WATERMARK on every page ──
+    const totalPages = pdf.internal.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      pdf.setPage(p);
+
+      // Diagonal watermark text
+      pdf.saveGraphicsState();
+      pdf.setGState(new pdf.GState({ opacity: 0.07 }));
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(38);
+      pdf.setTextColor(0, 27, 67);
+
+      // Rotate around center of page
+      const cx = pageW / 2;
+      const cy = pageH / 2;
+      // Draw multiple diagonal passes
+      for (let i = -2; i <= 2; i++) {
+        pdf.text('Created by M.G.', cx + i * 30, cy + i * 25, {
+          angle: 45,
+          align: 'center'
+        });
+      }
+      pdf.restoreGraphicsState();
+
+      // Footer on every page
+      pdf.saveGraphicsState();
+      pdf.setGState(new pdf.GState({ opacity: 1 }));
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+      pdf.setTextColor(150, 145, 138);
+      const dateStr = new Date().toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'numeric'});
+      pdf.text(`Türblatt Aufmaß · Aufnahmeprotokoll · ${dateStr}`, margin, pageH - 5);
+      pdf.text(`Seite ${p} / ${totalPages}`, pageW - margin, pageH - 5, { align: 'right' });
+      // Small watermark in footer
+      pdf.setFontSize(6.5);
+      pdf.setTextColor(180, 175, 168);
+      pdf.text('Created by M.G.', pageW / 2, pageH - 5, { align: 'center' });
+      pdf.restoreGraphicsState();
+    }
+
+    // Generate filename
+    const projekt = document.getElementById('field-projekt').value.trim().replace(/[^a-zA-Z0-9äöüÄÖÜß\-_]/g, '_').substring(0, 30) || 'Aufmass';
+    const dateFile = new Date().toISOString().slice(0,10);
+    pdf.save(`Tuerblatt_${projekt}_${dateFile}.pdf`);
+
+  } catch(e) {
+    alert('PDF-Export fehlgeschlagen: ' + e.message);
+    console.error(e);
+  } finally {
+    document.querySelector('.actions').style.display = 'flex';
+    overlay.classList.remove('active');
+  }
+}
+
+// ── RESET ─────────────────────────────────────────────
+function resetForm() {
+  if (!confirm('Alle Eingaben zurücksetzen?')) return;
+  document.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(el => el.value = '');
+  document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => el.checked = false);
+  document.querySelectorAll('.foto-slot img').forEach(img => img.remove());
+  document.querySelectorAll('.foto-slot .icon, .foto-slot label').forEach(el => el.style.display = '');
+  document.getElementById('din-l').classList.remove('selected');
+  document.getElementById('din-r').classList.remove('selected');
+  const area = document.getElementById('sketchArea');
+  area.style.backgroundImage = '';
+  area.querySelector('.sketch-hint').style.display = '';
+  document.getElementById('gps-status').textContent = '';
+  const d = new Date();
+  document.getElementById('field-datum').value =
+    d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+</script>
+</body>
+</html>
