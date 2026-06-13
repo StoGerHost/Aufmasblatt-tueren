@@ -263,6 +263,63 @@
     .form-wrapper { border-radius: 0; border: none; }
     .section-title { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
+
+  /* PAYMENT GATE */
+  #pay-gate {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  #pay-gate.active { display: flex; }
+  .pay-box {
+    background: #fff; border-radius: 18px; padding: 32px 28px;
+    text-align: center; max-width: 320px; width: 90%;
+    box-shadow: 0 12px 48px rgba(0,27,67,0.25);
+  }
+  .pay-icon { font-size: 40px; margin-bottom: 10px; }
+  .pay-box h2 { font-size: 20px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+  .pay-sub { font-size: 12px; color: var(--muted); }
+  .pay-price { font-size: 36px; font-weight: 800; color: var(--orange); margin: 10px 0 20px; }
+  #paypal-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: #0070BA; color: #fff; border-radius: 10px;
+    padding: 13px 20px; font-size: 14px; font-weight: 700;
+    text-decoration: none; transition: background 0.15s;
+  }
+  #paypal-btn:hover { background: #005ea6; }
+  .pay-divider {
+    font-size: 11px; color: var(--muted); margin: 16px 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .pay-divider::before, .pay-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .pay-code-wrap {
+    display: flex; gap: 8px;
+  }
+  .pay-code-wrap input {
+    flex: 1; padding: 10px 12px; border: 1.5px solid var(--border);
+    border-radius: 8px; font-size: 16px; font-weight: 600;
+    text-align: center; letter-spacing: 0.15em; color: var(--accent);
+    font-family: -apple-system, monospace;
+  }
+  .pay-code-wrap input:focus { outline: none; border-color: var(--accent); }
+  .pay-code-wrap button {
+    padding: 10px 16px; background: var(--accent); color: #fff;
+    border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer;
+  }
+  .pay-code-wrap button:hover { background: #091636; }
+  #code-msg { font-size: 12px; margin-top: 8px; min-height: 18px; }
+  #code-msg.ok { color: #1E6B3E; font-weight: 600; }
+  #code-msg.err { color: #C0392B; font-weight: 600; }
+  .pay-cancel {
+    margin-top: 18px; background: none; border: none;
+    color: var(--muted); font-size: 12px; cursor: pointer; text-decoration: underline;
+  }
+
+  /* Textauswahl global sperren außer Eingabefelder */
+  body { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+  input, textarea { -webkit-user-select: text !important; user-select: text !important; }
 </style>
 </head>
 <body>
@@ -273,6 +330,31 @@
     <h3>PDF wird erstellt …</h3>
     <p>Wasserzeichen wird eingefügt</p>
     <div class="spinner"></div>
+  </div>
+</div>
+
+<!-- PAYMENT GATE -->
+<div id="pay-gate">
+  <div class="pay-box">
+    <div class="pay-icon">📄</div>
+    <h2>PDF Export</h2>
+    <p class="pay-sub">Einmaliger Download für</p>
+    <div class="pay-price">0,09 €</div>
+
+    <a id="paypal-btn" href="#" target="_blank" onclick="onPaypalClick()">
+      <svg height="20" viewBox="0 0 101 32" xmlns="http://www.w3.org/2000/svg"><path fill="#fff" d="M12.237 2.343h-7.5a1.04 1.04 0 00-1.028.878L.709 25.23a.624.624 0 00.616.722h3.58a1.04 1.04 0 001.028-.878l.868-5.503a1.04 1.04 0 011.028-.878h2.372c4.942 0 7.794-2.392 8.544-7.133.337-2.073.014-3.702-.962-4.843-1.072-1.254-2.974-1.374-5.546-1.374zm.867 7.027c-.41 2.687-2.468 2.687-4.459 2.687h-1.132l.794-5.027a.625.625 0 01.617-.527h.52c1.355 0 2.634 0 3.293.772.394.462.514 1.147.367 2.095zm21.55-.083h-3.594a.625.625 0 00-.617.527l-.159 1.006-.251-.364c-.779-1.131-2.516-1.509-4.25-1.509-3.977 0-7.374 3.013-8.034 7.237-.344 2.108.145 4.122 1.343 5.527 1.1 1.291 2.673 1.829 4.545 1.829 3.205 0 4.982-2.061 4.982-2.061l-.16 1a.624.624 0 00.616.722h3.236a1.04 1.04 0 001.028-.878l1.941-12.295a.624.624 0 00-.626-.741zm-5.007 7.003c-.348 2.058-1.983 3.44-4.063 3.44-1.044 0-1.88-.336-2.415-.971-.531-.631-.731-1.53-.564-2.531.325-2.04 1.985-3.467 4.034-3.467 1.022 0 1.853.338 2.398.978.547.645.762 1.549.61 2.551z"/></svg>
+      Mit PayPal bezahlen · 0,09 €
+    </a>
+
+    <div class="pay-divider">oder</div>
+
+    <div class="pay-code-wrap">
+      <input id="code-input" type="text" placeholder="Mitarbeitercode" maxlength="10" autocomplete="off">
+      <button onclick="checkCode()">✓</button>
+    </div>
+    <div id="code-msg"></div>
+
+    <button class="pay-cancel" onclick="closePayGate()">Abbrechen</button>
   </div>
 </div>
 
@@ -733,7 +815,7 @@
 
 <!-- FLOATING ACTIONS -->
 <div class="actions">
-  <button class="btn btn-export" onclick="exportPDF()">⬇ PDF exportieren</button>
+  <button class="btn btn-export" onclick="checkPayment()">⬇ PDF exportieren</button>
 </div>
 
 <script>
@@ -970,6 +1052,139 @@ function resetForm() {
   document.getElementById('field-datum').value =
     d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
+
+  // ── PAYMENT GATE ─────────────────────────────────────
+  const EMPLOYEE_CODE = '7808';
+  const PAYPAL_ME = 'https://www.paypal.me/marko436/0.09EUR';
+  let paypalClicked = false;
+
+  function checkPayment() {
+    // Already unlocked this session?
+    if (sessionStorage.getItem('pdf_unlocked') === '1') {
+      exportPDF(); return;
+    }
+    paypalClicked = false;
+    document.getElementById('code-input').value = '';
+    document.getElementById('code-msg').textContent = '';
+    document.getElementById('pay-gate').classList.add('active');
+  }
+
+  function closePayGate() {
+    document.getElementById('pay-gate').classList.remove('active');
+    paypalClicked = false;
+  }
+
+  function onPaypalClick() {
+    paypalClicked = true;
+    document.getElementById('paypal-btn').href = PAYPAL_ME;
+    // Poll: after user returns, show confirm button
+    setTimeout(() => {
+      const msg = document.getElementById('code-msg');
+      msg.className = '';
+      msg.innerHTML = '<br>Zahlung abgeschlossen? <button onclick="confirmPaypal()" style="background:var(--orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer;font-size:12px;">Ja, PDF erstellen ✓</button>';
+    }, 4000);
+  }
+
+  function confirmPaypal() {
+    sessionStorage.setItem('pdf_unlocked', '1');
+    closePayGate();
+    exportPDF();
+  }
+
+  function checkCode() {
+    const val = document.getElementById('code-input').value.trim();
+    const msg = document.getElementById('code-msg');
+    if (val === EMPLOYEE_CODE) {
+      msg.textContent = '✓ Code akzeptiert – PDF wird erstellt …';
+      msg.className = 'ok';
+      sessionStorage.setItem('pdf_unlocked', '1');
+      setTimeout(() => { closePayGate(); exportPDF(); }, 800);
+    } else {
+      msg.textContent = '✗ Ungültiger Code.';
+      msg.className = 'err';
+      document.getElementById('code-input').value = '';
+      document.getElementById('code-input').focus();
+    }
+  }
+
+  // Allow Enter key in code input
+  document.addEventListener('DOMContentLoaded', () => {
+    const inp = document.getElementById('code-input');
+    if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') checkCode(); });
+  });
+
+
+  // ── KOPIER- UND QUELLCODE-SCHUTZ ─────────────────────
+  (function() {
+    // Rechtsklick deaktivieren
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault(); e.stopPropagation(); return false;
+    }, true);
+
+    // Kopieren / Ausschneiden / Einfügen blockieren
+    ['copy','cut','paste'].forEach(function(ev) {
+      document.addEventListener(ev, function(e) {
+        e.preventDefault(); e.stopPropagation(); return false;
+      }, true);
+    });
+
+    // Drag blockieren
+    document.addEventListener('dragstart', function(e) {
+      e.preventDefault(); return false;
+    }, true);
+
+    // Textauswahl verhindern
+    document.addEventListener('selectstart', function(e) {
+      // Eingabefelder dürfen weiterhin selektiert werden
+      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault(); return false;
+      }
+    }, true);
+
+    // Tastaturkürzel blockieren (F12, Strg+U, Strg+S, Strg+C, Strg+A, Strg+Shift+I/J/C)
+    document.addEventListener('keydown', function(e) {
+      const k = e.keyCode;
+      // F12
+      if (k === 123) { e.preventDefault(); return false; }
+      // Ctrl/Cmd combinations
+      if (e.ctrlKey || e.metaKey) {
+        // U = view source, S = save, C = copy, A = select all, P = print
+        if ([67,65,83,85,80].includes(k)) { e.preventDefault(); return false; }
+        // Shift + I / J / C = DevTools
+        if (e.shiftKey && [73,74,67].includes(k)) { e.preventDefault(); return false; }
+      }
+    }, true);
+
+    // DevTools Erkennung – Konsolenzugriff blockieren
+    var devtoolsOpen = false;
+    var threshold = 160;
+    setInterval(function() {
+      if (window.outerWidth - window.innerWidth > threshold ||
+          window.outerHeight - window.innerHeight > threshold) {
+        if (!devtoolsOpen) {
+          devtoolsOpen = true;
+          document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;font-family:-apple-system,sans-serif;background:#F2F4F7;"><div style="text-align:center;padding:40px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,27,67,.15);max-width:320px"><div style="font-size:48px;margin-bottom:16px">🔒</div><h2 style="color:#001B43;font-size:18px;font-weight:800;margin-bottom:8px">Zugriff gesperrt</h2><p style="color:#6B7A8D;font-size:13px;line-height:1.6">Entwicklerwerkzeuge sind nicht gestattet.<br>Bitte schließen Sie die DevTools und<br>laden Sie die Seite neu.</p><button onclick="location.reload()" style="margin-top:20px;background:#001B43;color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer">Neu laden</button></div></div>';
+        }
+      } else {
+        devtoolsOpen = false;
+      }
+    }, 1000);
+
+    // Quellcode-Schutz: View Source abfangen (nicht in allen Browsern möglich, aber Versuch)
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key.toUpperCase()))) {
+        e.preventDefault(); return false;
+      }
+    }, true);
+
+    // Print-Screen etwas erschwerend
+    window.addEventListener('beforeprint', function(e) {
+      e.preventDefault();
+      return false;
+    });
+
+  })();
+
 </script>
 </body>
 </html>
