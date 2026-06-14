@@ -190,9 +190,32 @@
     repeating-linear-gradient(90deg, transparent, transparent 24px, #E8E5DF 24px, #E8E5DF 25px);
     background-color: #FAFAF8; min-height: 200px;
     display: flex; align-items: center; justify-content: center; position: relative;
+    overflow: hidden;
   }
-  .sketch-hint { color: var(--muted); font-size: 12px; text-align: center; pointer-events: none; }
+  .sketch-hint { color: var(--muted); font-size: 12px; text-align: center; pointer-events: none; position: relative; z-index: 1; }
   .sketch-hint svg { display: block; margin: 0 auto 6px; opacity: 0.4; }
+
+  /* DRAW CANVAS (sketch + signatures) */
+  .draw-canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    touch-action: none; /* required so Apple Pencil / finger drawing isn't hijacked by scroll */
+    -webkit-user-select: none; user-select: none;
+    cursor: crosshair;
+  }
+  .sketch-area .draw-canvas { z-index: 2; }
+  .draw-toolbar {
+    display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap;
+  }
+  .sign-box { position: relative; }
+  .sign-canvas-wrap {
+    position: relative; width: 100%; height: 90px; margin-top: 6px;
+    border: 1.5px dashed var(--border-strong); border-radius: 6px;
+    background: #FAFAF8; overflow: hidden;
+  }
+  .sign-canvas-wrap .draw-canvas { z-index: 1; }
+  .sign-clear-btn {
+    margin-top: 6px; font-size: 10px; padding: 5px 12px;
+  }
 
   /* FOTO */
   .foto-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
@@ -746,15 +769,22 @@
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
           </svg>
-          Freihand-Zeichenfläche<br><small>Surface Pen / Stylus · Foto einfügen</small>
+          Freihand-Zeichenfläche<br><small>Apple Pencil / Stylus / Finger · oder Foto einfügen</small>
         </div>
+        <canvas class="draw-canvas" id="sketchCanvas"></canvas>
         <input type="file" id="sketchFile" accept="image/*" style="display:none" onchange="loadSketch(event)">
       </div>
-      <button class="btn btn-secondary" style="margin-top:6px;font-size:11px;padding:6px 14px;box-shadow:none;" onclick="document.getElementById('sketchFile').click()">
-        📎 Skizze als Bild laden
-      </button>
+      <div class="draw-toolbar">
+        <button class="btn btn-secondary" style="font-size:11px;padding:6px 14px;box-shadow:none;" onclick="document.getElementById('sketchFile').click()">
+          📎 Skizze als Bild laden
+        </button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:6px 14px;box-shadow:none;" onclick="clearSketch()">
+          🗑️ Skizze löschen
+        </button>
+      </div>
     </div>
   </div>
+
 
   <!-- 7 FOTODOKUMENTATION -->
   <div class="section">
@@ -808,10 +838,18 @@
       <div class="sign-grid">
         <div class="sign-box">
           <label>Aufgenommen von</label>
+          <div class="sign-canvas-wrap">
+            <canvas class="draw-canvas sign-canvas" id="signCanvas1"></canvas>
+          </div>
+          <button class="btn btn-secondary sign-clear-btn" onclick="clearSignature('signCanvas1')">🗑️ Unterschrift löschen</button>
           <div class="sign-line">Name, Unterschrift, Datum</div>
         </div>
         <div class="sign-box">
           <label>Bestätigt durch Auftraggeber</label>
+          <div class="sign-canvas-wrap">
+            <canvas class="draw-canvas sign-canvas" id="signCanvas2"></canvas>
+          </div>
+          <button class="btn btn-secondary sign-clear-btn" onclick="clearSignature('signCanvas2')">🗑️ Unterschrift löschen</button>
           <div class="sign-line">Name, Unterschrift, Datum</div>
         </div>
       </div>
@@ -871,6 +909,154 @@ function loadSketch(event) {
   area.style.backgroundRepeat = 'no-repeat';
   area.style.backgroundPosition = 'center';
   area.querySelector('.sketch-hint').style.display = 'none';
+  // An uploaded photo replaces any existing freehand sketch on this canvas
+  clearSketch();
+}
+
+// ── FREEHAND DRAWING (Apple Pencil / Stylus / Finger / Mouse) ──────────
+// Uses Pointer Events, which iPadOS Safari reports for Apple Pencil with
+// pressure (event.pressure) and pointerType === 'pen'. Each canvas is
+// backed at devicePixelRatio resolution so lines stay crisp, while the
+// drawing coordinate space stays in CSS pixels for simplicity.
+const drawCanvases = {}; // id -> { canvas, ctx, hasInk }
+
+function setupDrawCanvas(canvas, opts) {
+  opts = opts || {};
+  const ctx = canvas.getContext('2d');
+  const state = { canvas, ctx, hasInk: false, drawing: false, lastX: 0, lastY: 0 };
+  drawCanvases[canvas.id] = state;
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    // Preserve existing drawing across resizes (e.g. orientation change)
+    let snapshot = null;
+    if (canvas.width > 0 && canvas.height > 0 && state.hasInk) {
+      snapshot = document.createElement('canvas');
+      snapshot.width = canvas.width;
+      snapshot.height = canvas.height;
+      snapshot.getContext('2d').drawImage(canvas, 0, 0);
+    }
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#001B43';
+    if (snapshot) {
+      ctx.drawImage(snapshot, 0, 0, snapshot.width, snapshot.height, 0, 0, rect.width, rect.height);
+    }
+  }
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function lineWidthFor(e) {
+    // Apple Pencil reports pressure 0..1 (0.5 default); widen slightly with pressure.
+    const base = 2;
+    if (e.pointerType === 'pen' && e.pressure > 0) {
+      return base + e.pressure * 2.5;
+    }
+    return base + 0.5;
+  }
+
+  function pointerDown(e) {
+    // Allow multi-touch scrolling/zoom to pass through unless it's a pen
+    // or the primary touch/mouse pointer.
+    if (!e.isPrimary) return;
+    e.preventDefault();
+    canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+    state.drawing = true;
+    const pos = getPos(e);
+    state.lastX = pos.x;
+    state.lastY = pos.y;
+    // Draw a dot for simple taps
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, lineWidthFor(e) / 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#001B43';
+    ctx.fill();
+    state.hasInk = true;
+    if (opts.onDraw) opts.onDraw();
+  }
+
+  function pointerMove(e) {
+    if (!state.drawing || !e.isPrimary) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    ctx.lineWidth = lineWidthFor(e);
+    ctx.beginPath();
+    ctx.moveTo(state.lastX, state.lastY);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    state.lastX = pos.x;
+    state.lastY = pos.y;
+    state.hasInk = true;
+  }
+
+  function pointerUp(e) {
+    if (!e.isPrimary) return;
+    state.drawing = false;
+    canvas.releasePointerCapture && e.pointerId != null && canvas.hasPointerCapture && canvas.hasPointerCapture(e.pointerId) && canvas.releasePointerCapture(e.pointerId);
+  }
+
+  canvas.addEventListener('pointerdown', pointerDown);
+  canvas.addEventListener('pointermove', pointerMove);
+  canvas.addEventListener('pointerup', pointerUp);
+  canvas.addEventListener('pointercancel', pointerUp);
+  canvas.addEventListener('pointerleave', pointerUp);
+
+  window.addEventListener('resize', resize);
+  // Initial size (after layout settles)
+  requestAnimationFrame(resize);
+  state.resize = resize;
+  return state;
+}
+
+function clearCanvas(state) {
+  if (!state) return;
+  const { canvas, ctx } = state;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+  state.hasInk = false;
+}
+
+function clearSketch() {
+  clearCanvas(drawCanvases['sketchCanvas']);
+  const area = document.getElementById('sketchArea');
+  // Clear any uploaded background image too
+  area.style.backgroundImage = '';
+  area.querySelector('.sketch-hint').style.display = '';
+}
+
+function clearSignature(id) {
+  clearCanvas(drawCanvases[id]);
+}
+
+// Hide the sketch hint as soon as the user starts drawing
+function initSketchHintToggle() {
+  const sketchState = drawCanvases['sketchCanvas'];
+  const hint = document.querySelector('#sketchArea .sketch-hint');
+  if (!sketchState || !hint) return;
+  const canvas = sketchState.canvas;
+  canvas.addEventListener('pointerdown', () => { hint.style.display = 'none'; });
+}
+
+// Initialize all drawing canvases
+function initDrawCanvases() {
+  setupDrawCanvas(document.getElementById('sketchCanvas'));
+  setupDrawCanvas(document.getElementById('signCanvas1'));
+  setupDrawCanvas(document.getElementById('signCanvas2'));
+  initSketchHintToggle();
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDrawCanvases);
+} else {
+  initDrawCanvases();
 }
 
 // ── GPS LOKALISIERUNG ─────────────────────────────────
@@ -1493,17 +1679,62 @@ async function drawSketchSectionNative(pdf, section, sectionNumber, pageW, pageH
   const urlMatch = bgImage && bgImage.match(/url\((['"]?)(.*?)\1\)/);
   const imgSrc = urlMatch ? urlMatch[2] : null;
 
+  // The freehand drawing canvas may contain ink on top of (or instead of)
+  // an uploaded background image. Compose both onto one offscreen canvas
+  // so the export shows exactly what the user sees on screen.
+  const drawState = (typeof drawCanvases !== 'undefined') ? drawCanvases['sketchCanvas'] : null;
+  const hasInk = drawState && drawState.hasInk;
+
   const boxH = 70; // mm, fixed placeholder/image height
   ensureSpace(boxH);
 
-  if (imgSrc) {
+  let composedSrc = imgSrc;
+  let composedIsCanvas = false;
+
+  if (hasInk) {
+    try {
+      const inkCanvas = drawState.canvas;
+      const w = inkCanvas.width;
+      const h = inkCanvas.height;
+      const merged = document.createElement('canvas');
+      merged.width = w;
+      merged.height = h;
+      const mctx = merged.getContext('2d');
+      mctx.fillStyle = '#FAFAF8';
+      mctx.fillRect(0, 0, w, h);
+      if (imgSrc) {
+        try {
+          const bg = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = imgSrc;
+          });
+          // "contain" fit, matching the on-screen background-size: contain
+          const bgRatio = bg.naturalWidth / bg.naturalHeight;
+          const boxRatio = w / h;
+          let dW, dH;
+          if (bgRatio > boxRatio) { dW = w; dH = w / bgRatio; }
+          else { dH = h; dW = h * bgRatio; }
+          mctx.drawImage(bg, (w - dW) / 2, (h - dH) / 2, dW, dH);
+        } catch (e) { /* ignore background load failure, still show ink */ }
+      }
+      mctx.drawImage(inkCanvas, 0, 0, w, h);
+      composedSrc = toDataURLAndFree(merged, 'image/png', 1.0);
+      composedIsCanvas = true;
+    } catch (e) {
+      composedSrc = imgSrc; // fall back to just the uploaded image
+    }
+  }
+
+  if (composedSrc) {
     // Load the image to get its natural dimensions, then draw it into the box
     try {
       const dims = await new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
         img.onerror = reject;
-        img.src = imgSrc;
+        img.src = composedSrc;
       });
       const boxW = contentW;
       const imgRatio = dims.w / dims.h;
@@ -1524,8 +1755,8 @@ async function drawSketchSectionNative(pdf, section, sectionNumber, pageW, pageH
       pdf.setLineWidth(0.3);
       pdf.rect(margin, cursorY, boxW, boxH, 'S');
 
-      const fmt = imgSrc.includes('image/png') ? 'PNG' : 'JPEG';
-      pdf.addImage(imgSrc, fmt, offsetX, offsetY, drawW, drawH);
+      const fmt = (composedIsCanvas || composedSrc.includes('image/png')) ? 'PNG' : 'JPEG';
+      pdf.addImage(composedSrc, fmt, offsetX, offsetY, drawW, drawH);
     } catch (e) {
       // Fall back to placeholder if image couldn't be loaded
       drawSketchPlaceholder(pdf, margin, cursorY, contentW, boxH, borderGrey, grey);
@@ -1549,6 +1780,170 @@ function drawSketchPlaceholder(pdf, x, y, w, h, borderGrey, grey) {
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   pdf.text('Freihand-Zeichenfläche (keine Skizze hinzugefügt)', x + w / 2, y + h / 2, { align: 'center', baseline: 'middle' });
+}
+
+// Render Section 8 ("Abschluss & Unterschrift") natively. This section
+// contains two live <canvas> signature pads; embedding their bitmaps
+// directly (via toDataURL) avoids relying on html2canvas to snapshot
+// <canvas> elements, which has been unreliable on iOS Safari for the
+// other canvas-heavy sections in this form.
+function drawAbschlussSectionNative(pdf, section, sectionNumber, pageW, pageH, margin, contentW, cursorY, bottomLimit, gap) {
+  const navy = [0, 27, 67];
+  const orange = [217, 94, 31];
+  const grey = [107, 122, 141];
+  const darkText = [26, 45, 68];
+  const lightBg = [238, 242, 248];
+  const borderGrey = [210, 218, 227];
+  const padX = 3;
+  const lineH = 5.2;
+
+  const titleEl = section.querySelector('.section-title');
+  let titleText = titleEl ? titleEl.textContent.replace(/\s+/g, ' ').trim() : '';
+  titleText = titleText.replace(/^\d+\s*/, '');
+
+  function ensureSpace(h) {
+    if (cursorY + h > bottomLimit) {
+      pdf.addPage();
+      cursorY = margin;
+    }
+  }
+
+  // Section title bar
+  const titleH = 8;
+  ensureSpace(titleH);
+  pdf.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+  pdf.rect(margin, cursorY, contentW, titleH, 'F');
+  pdf.setDrawColor(navy[0], navy[1], navy[2]);
+  pdf.setLineWidth(0.5);
+  pdf.line(margin, cursorY + titleH, margin + contentW, cursorY + titleH);
+  pdf.setFillColor(orange[0], orange[1], orange[2]);
+  pdf.circle(margin + 4, cursorY + titleH / 2, 2.2, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(7);
+  pdf.text(String(sectionNumber), margin + 4, cursorY + titleH / 2, { align: 'center', baseline: 'middle' });
+  pdf.setTextColor(navy[0], navy[1], navy[2]);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9);
+  pdf.text(titleText.toUpperCase(), margin + 9, cursorY + titleH / 2, { baseline: 'middle' });
+  cursorY += titleH + gap;
+
+  // ── Prüfung (checkboxes) ──
+  const checkRow = section.querySelector('.field-row .check-group');
+  if (checkRow) {
+    const options = Array.from(checkRow.querySelectorAll('.check-item'));
+    const selected = options.filter(o => o.querySelector('input').checked)
+                             .map(o => o.textContent.replace(/\s+/g, ' ').trim());
+    const allOptions = options.map(o => o.textContent.replace(/\s+/g, ' ').trim());
+
+    const rowH = lineH * 2 + 2;
+    ensureSpace(rowH);
+    pdf.setTextColor(grey[0], grey[1], grey[2]);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7);
+    pdf.text('PRÜFUNG', margin + padX, cursorY + 3.2);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    if (selected.length > 0) {
+      pdf.setTextColor(orange[0], orange[1], orange[2]);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('✓ ' + selected.join(', '), margin + padX, cursorY + 8.4);
+    } else {
+      pdf.setTextColor(180, 175, 168);
+      const optionsLine = allOptions.join('  ·  ');
+      const wrapped = pdf.splitTextToSize(optionsLine, contentW - padX * 2);
+      pdf.text(wrapped[0] || '', margin + padX, cursorY + 8.4);
+    }
+    cursorY += rowH;
+  }
+
+  // ── Bemerkungen (textarea) ──
+  const textarea = section.querySelector('textarea.field-input');
+  if (textarea) {
+    const val = textarea.value ? textarea.value.trim() : '';
+    pdf.setTextColor(grey[0], grey[1], grey[2]);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7);
+    ensureSpace(lineH);
+    pdf.text('BEMERKUNGEN', margin + padX, cursorY + 3.2);
+    cursorY += lineH;
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.setTextColor(darkText[0], darkText[1], darkText[2]);
+    const text = val || '—';
+    const wrapped = pdf.splitTextToSize(text, contentW - padX * 2);
+    const textH = wrapped.length * lineH;
+    ensureSpace(textH + 2);
+    pdf.text(wrapped, margin + padX, cursorY + 3.2);
+    cursorY += textH + 2;
+
+    // box around remarks
+    pdf.setDrawColor(borderGrey[0], borderGrey[1], borderGrey[2]);
+    pdf.setLineWidth(0.2);
+  }
+
+  cursorY += gap;
+
+  // ── Unterschriften (signature canvases) ──
+  const signBoxes = Array.from(section.querySelectorAll('.sign-box'));
+  const boxH = 35; // mm height per signature box
+  ensureSpace(boxH);
+  const colW = (contentW - 6) / 2; // 6mm gap between the two boxes
+
+  signBoxes.forEach((box, idx) => {
+    const x = margin + idx * (colW + 6);
+    const labelEl = box.querySelector('label');
+    const labelText = labelEl ? labelEl.textContent.replace(/\s+/g, ' ').trim() : '';
+
+    // Box border
+    pdf.setDrawColor(borderGrey[0], borderGrey[1], borderGrey[2]);
+    pdf.setLineWidth(0.3);
+    pdf.rect(x, cursorY, colW, boxH, 'S');
+
+    // Label
+    pdf.setTextColor(grey[0], grey[1], grey[2]);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7);
+    pdf.text(labelText.toUpperCase(), x + padX, cursorY + 4.5);
+
+    // Signature image (if drawn)
+    const canvas = box.querySelector('canvas.sign-canvas');
+    const state = (typeof drawCanvases !== 'undefined' && canvas) ? drawCanvases[canvas.id] : null;
+    const sigAreaY = cursorY + 6;
+    const sigAreaH = boxH - 6 - 5; // leave room for "Name, Unterschrift, Datum" line
+    if (state && state.hasInk) {
+      try {
+        const dataUrl = canvas.toDataURL('image/png', 1.0);
+        const imgRatio = canvas.width / canvas.height;
+        const boxRatio = (colW - padX * 2) / sigAreaH;
+        let drawW, drawH;
+        if (imgRatio > boxRatio) {
+          drawW = colW - padX * 2;
+          drawH = drawW / imgRatio;
+        } else {
+          drawH = sigAreaH;
+          drawW = drawH * imgRatio;
+        }
+        const offsetX = x + padX;
+        const offsetY = sigAreaY + (sigAreaH - drawH) / 2;
+        pdf.addImage(dataUrl, 'PNG', offsetX, offsetY, drawW, drawH);
+      } catch (e) { /* ignore, leave blank */ }
+    }
+
+    // "Name, Unterschrift, Datum" line
+    pdf.setDrawColor(borderGrey[0] + 20 < 255 ? borderGrey[0] : 255, borderGrey[1], borderGrey[2]);
+    pdf.setLineWidth(0.2);
+    pdf.line(x + padX, cursorY + boxH - 6, x + colW - padX, cursorY + boxH - 6);
+    pdf.setTextColor(grey[0], grey[1], grey[2]);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7);
+    pdf.text('Name, Unterschrift, Datum', x + padX, cursorY + boxH - 2.5);
+  });
+
+  cursorY += boxH + gap;
+  return cursorY;
 }
 
 async function exportPDF() {
@@ -1706,6 +2101,16 @@ async function exportPDF() {
       // image directly if present, or draws a placeholder box).
       if (sectionNum === '6') {
         cursorY = await drawSketchSectionNative(pdf, section, sectionNum, pageW, pageH, margin, contentW, cursorY, bottomLimit, gap);
+        continue;
+      }
+
+      // Section 8 ("Abschluss & Unterschrift") contains two live <canvas>
+      // signature pads. Snapshotting <canvas> bitmaps via html2canvas has
+      // been unreliable on iOS Safari for other canvas-heavy sections in
+      // this form, so render this section natively, embedding each
+      // signature canvas's bitmap directly via toDataURL.
+      if (sectionNum === '8') {
+        cursorY = drawAbschlussSectionNative(pdf, section, sectionNum, pageW, pageH, margin, contentW, cursorY, bottomLimit, gap);
         continue;
       }
 
