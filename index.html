@@ -1200,34 +1200,6 @@ function resetForm() {
       }
     }, true);
 
-    // DevTools Erkennung – Konsolenzugriff blockieren
-    var devtoolsOpen = false;
-    var threshold = 160;
-    setInterval(function() {
-      if (window.outerWidth - window.innerWidth > threshold ||
-          window.outerHeight - window.innerHeight > threshold) {
-        if (!devtoolsOpen) {
-          devtoolsOpen = true;
-          document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;font-family:-apple-system,sans-serif;background:#F2F4F7;"><div style="text-align:center;padding:40px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,27,67,.15);max-width:320px"><div style="font-size:48px;margin-bottom:16px">🔒</div><h2 style="color:#001B43;font-size:18px;font-weight:800;margin-bottom:8px">Zugriff gesperrt</h2><p style="color:#6B7A8D;font-size:13px;line-height:1.6">Entwicklerwerkzeuge sind nicht gestattet.<br>Bitte schließen Sie die DevTools und<br>laden Sie die Seite neu.</p><button onclick="location.reload()" style="margin-top:20px;background:#001B43;color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer">Neu laden</button></div></div>';
-        }
-      } else {
-        devtoolsOpen = false;
-      }
-    }, 1000);
-
-    // Quellcode-Schutz: View Source abfangen (nicht in allen Browsern möglich, aber Versuch)
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key.toUpperCase()))) {
-        e.preventDefault(); return false;
-      }
-    }, true);
-
-    // Print-Screen etwas erschwerend
-    window.addEventListener('beforeprint', function(e) {
-      e.preventDefault();
-      return false;
-    });
-
   })();
 
 </script>
