@@ -6,6 +6,11 @@
 <title>Türblatt Aufmaß – Aufnahmeprotokoll</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link rel="manifest" href="data:application/json,{%22name%22:%22Aufma%C3%9Fprotokoll%22,%22short_name%22:%22Aufma%C3%9F%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23F2F4F7%22,%22theme_color%22:%22%23001B43%22}">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Aufmaß">
 <style>
   :root {
     --bg:            #F2F4F7;
@@ -382,9 +387,122 @@
   /* Textauswahl global sperren außer Eingabefelder */
   body { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
   input, textarea { -webkit-user-select: text !important; user-select: text !important; }
+
+  /* ── AUTOSAVE BANNER ─────────────────────────────────── */
+  #autosave-banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    background: var(--accent); color: #fff;
+    padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; font-size: 12px; font-weight: 600;
+    box-shadow: 0 2px 12px rgba(0,27,67,0.3);
+    transform: translateY(-100%); transition: transform 0.3s ease;
+  }
+  #autosave-banner.visible { transform: translateY(0); }
+  #autosave-banner.restore { background: #D95E1F; }
+  #autosave-banner .banner-actions { display: flex; gap: 8px; }
+  #autosave-banner button {
+    background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4);
+    color: #fff; border-radius: 6px; padding: 4px 12px; font-size: 11px;
+    font-weight: 700; cursor: pointer;
+  }
+  #autosave-banner button:hover { background: rgba(255,255,255,0.35); }
+  #autosave-indicator {
+    position: fixed; bottom: 70px; left: 16px; z-index: 100;
+    background: rgba(0,27,67,0.8); color: #fff; border-radius: 20px;
+    padding: 4px 12px; font-size: 10px; font-weight: 600;
+    opacity: 0; transition: opacity 0.4s; pointer-events: none;
+  }
+  #autosave-indicator.flash { opacity: 1; }
+
+  /* ── MULTI-DOOR TABS ─────────────────────────────────── */
+  .door-tabs-bar {
+    background: var(--accent); padding: 8px 12px 0;
+    display: flex; gap: 4px; align-items: flex-end; flex-wrap: wrap;
+    border-radius: 6px 6px 0 0;
+  }
+  .door-tab {
+    padding: 6px 14px; border-radius: 6px 6px 0 0;
+    background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7);
+    border: none; font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: background 0.15s, color 0.15s; white-space: nowrap;
+  }
+  .door-tab:hover { background: rgba(255,255,255,0.25); color: #fff; }
+  .door-tab.active { background: var(--bg); color: var(--accent); }
+  .door-tab.add-tab {
+    background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);
+    border: 1.5px dashed rgba(255,255,255,0.3); font-size: 14px; padding: 4px 12px;
+  }
+  .door-tab.add-tab:hover { background: rgba(255,255,255,0.2); color: #fff; }
+  .door-tab .tab-close {
+    margin-left: 6px; opacity: 0.6; font-size: 11px; display: inline-block;
+  }
+  .door-tab:hover .tab-close { opacity: 1; }
+  .door-panel { display: none; }
+  .door-panel.active { display: block; }
+  .door-tabs-hint {
+    font-size: 11px; color: var(--muted); padding: 4px 12px 8px;
+    background: var(--accent-lt); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* ── VALIDATION HINTS ────────────────────────────────── */
+  .val-warning {
+    font-size: 10px; color: #C0392B; font-weight: 600;
+    display: none; margin-top: 2px; padding: 3px 8px;
+    background: #FEF2F2; border-radius: 4px; border-left: 3px solid #C0392B;
+  }
+  .val-warning.visible { display: block; }
+  .mass-input.warn { border-bottom-color: #C0392B !important; }
+
+  /* ── PWA INSTALL PROMPT ──────────────────────────────── */
+  #pwa-prompt {
+    display: none; position: fixed; bottom: 80px; left: 16px; right: 16px;
+    background: var(--accent); color: #fff; border-radius: 12px;
+    padding: 14px 16px; z-index: 150;
+    box-shadow: 0 4px 20px rgba(0,27,67,0.35);
+    flex-direction: column; gap: 10px;
+  }
+  #pwa-prompt.visible { display: flex; }
+  #pwa-prompt p { font-size: 12px; line-height: 1.5; margin: 0; }
+  #pwa-prompt strong { font-size: 13px; display: block; margin-bottom: 4px; }
+  #pwa-prompt .pwa-btns { display: flex; gap: 8px; }
+  #pwa-prompt button {
+    border: none; border-radius: 8px; padding: 8px 16px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  #pwa-prompt .pwa-install { background: var(--orange); color: #fff; }
+  #pwa-prompt .pwa-dismiss { background: rgba(255,255,255,0.15); color: #fff; }
+
+  /* ── FILENAME PREVIEW ────────────────────────────────── */
+  .pdf-filename-hint {
+    font-size: 10px; color: var(--muted); margin-top: 6px;
+    font-family: ui-monospace, monospace; padding: 4px 8px;
+    background: var(--field-bg); border-radius: 4px; display: inline-block;
+  }
 </style>
 </head>
 <body>
+
+<!-- AUTOSAVE RESTORE BANNER -->
+<div id="autosave-banner">
+  <span id="autosave-banner-msg">💾 Nicht gespeicherte Eingaben wiederhergestellt</span>
+  <div class="banner-actions">
+    <button onclick="restoreAutosave()">✓ Wiederherstellen</button>
+    <button onclick="dismissAutosave()">✕ Verwerfen</button>
+  </div>
+</div>
+
+<!-- AUTOSAVE FLASH INDICATOR -->
+<div id="autosave-indicator">✓ Gespeichert</div>
+
+<!-- PWA INSTALL PROMPT -->
+<div id="pwa-prompt">
+  <p><strong>📱 App auf Startbildschirm</strong>Zum Startbildschirm hinzufügen für Offline-Nutzung und schnelleren Zugriff auf der Baustelle.</p>
+  <div class="pwa-btns">
+    <button class="pwa-install" id="pwa-install-btn" onclick="installPWA()">Installieren</button>
+    <button class="pwa-dismiss" onclick="dismissPWA()">Nicht jetzt</button>
+  </div>
+</div>
 
 <!-- MITARBEITER-CODE GANZ AM ANFANG -->
 <div id="code-gate">
@@ -433,6 +551,14 @@
 
     <button class="pay-cancel" onclick="closePayGate()">Abbrechen</button>
   </div>
+</div>
+
+<!-- DOOR TABS -->
+<div class="door-tabs-bar" id="door-tabs-bar">
+  <button class="door-tab add-tab" onclick="addNewDoor()" title="Neue Tür hinzufügen">+</button>
+</div>
+<div class="door-tabs-hint">
+  📋 Tür aktuell – weitere Türen per <strong>+</strong> hinzufügen, Auftragsdaten bleiben erhalten
 </div>
 
 <!-- HEADER -->
@@ -772,11 +898,12 @@
           <div class="mass-row"><span class="mass-label">Unteres Band <span class="mass-abbr">(von UK)</span></span><input class="mass-input" type="number" placeholder="—"><span class="mass-unit">mm</span></div>
           <div class="mass-row"><span class="mass-label">Anzahl Bänder</span><input class="mass-input" type="number" placeholder="—" min="1" max="6"><span class="mass-unit">Stk.</span></div>
         </div>
+      </div><!-- end mass-grid -->
+      <div class="val-warning" id="val-mass-warn">
+        ⚠ Türblatt-Breite ist größer als Rohmaß-Breite – bitte prüfen.
       </div>
     </div>
   </div>
-
-  <!-- 5 BESCHLÄGE -->
   <div class="section">
     <div class="section-title"><span class="num">5</span> Beschläge</div>
     <div class="section-body">
@@ -793,7 +920,18 @@
       </div>
       <div class="field-row">
         <span class="field-label">Band-Fabrikat / Typ</span>
-        <input class="field-input" type="text" placeholder="z. B. Simonswerk TECTUS, Dorma …">
+        <input class="field-input" type="text" list="dl-band" placeholder="z. B. Simonswerk TECTUS, Dorma …">
+        <datalist id="dl-band">
+          <option value="Simonswerk TECTUS TE 540 3D">
+          <option value="Simonswerk TECTUS TE 640 3D">
+          <option value="Dorma RTS 85 N">
+          <option value="Dorma STUDIO 3D">
+          <option value="Dormakaba Siku 3-D">
+          <option value="Assa Abloy Cisa 3D">
+          <option value="FDB Bettleband">
+          <option value="Siku Rollenband">
+          <option value="Hawa Pivota">
+        </datalist>
       </div>
       <div class="divider"></div>
       <div class="field-row">
@@ -815,7 +953,20 @@
       </div>
       <div class="field-row">
         <span class="field-label">Schloss-Fabrikat / Typ</span>
-        <input class="field-input" type="text" placeholder="z. B. Wilka, ASSA ABLOY …">
+        <input class="field-input" type="text" list="dl-schloss" placeholder="z. B. Wilka, ASSA ABLOY …">
+        <datalist id="dl-schloss">
+          <option value="BKS Janus 46">
+          <option value="BKS Janus 44">
+          <option value="Wilka 3600">
+          <option value="Wilka 3605">
+          <option value="ASSA ABLOY 335">
+          <option value="Dormakaba 8000">
+          <option value="Glutz 56005">
+          <option value="Dorma BTS 75V">
+          <option value="Eff-Eff Panikschloss">
+          <option value="FSB 8012">
+          <option value="Roto NT">
+        </datalist>
       </div>
       <div class="field-row double">
         <span class="field-label">Dorn-Maß</span>
@@ -834,7 +985,18 @@
       </div>
       <div class="field-row">
         <span class="field-label">Drücker-Fabrikat / Typ</span>
-        <input class="field-input" type="text" placeholder="z. B. FSB 1076, Hoppe Amsterdam …">
+        <input class="field-input" type="text" list="dl-druecker" placeholder="z. B. FSB 1076, Hoppe Amsterdam …">
+        <datalist id="dl-druecker">
+          <option value="FSB 1076 Edelstahl">
+          <option value="FSB 1146 Edelstahl matt">
+          <option value="Hoppe Amsterdam E42/42H">
+          <option value="Hoppe Toulon E1400Z">
+          <option value="ASSA ABLOY Bever">
+          <option value="Griffwerk Retro">
+          <option value="Karcher Design EV1">
+          <option value="Dormakaba Favorit">
+          <option value="Olivari Onda">
+        </datalist>
       </div>
       <div class="divider"></div>
       <div class="field-row">
@@ -979,8 +1141,8 @@
 
   <!-- FOOTER -->
   <div class="doc-footer">
-    <span>Türblatt Aufmaß · Aufnahmeprotokoll · Version 1.5 &nbsp;·&nbsp; Created by M.G.</span>
-    <span id="footer-date"></span>
+    <span>Türblatt Aufmaß · Aufnahmeprotokoll · Version 1.6 &nbsp;·&nbsp; Created by M.G.</span>
+    <span id="pdf-filename-preview" class="pdf-filename-hint">Tuerblatt_Aufmass_YYYY-MM-DD.pdf</span>
   </div>
 
 </div>
@@ -992,13 +1154,17 @@
 </div>
 
 <script>
+// ── TOP-LEVEL VARIABLE DECLARATIONS (hoisted to avoid TDZ errors) ──
+const AUTOSAVE_KEY = 'aufmass_autosave_v1';
+const AUTOSAVE_META_KEY = 'aufmass_autosave_meta';
+let autosaveTimer = null;
+let pendingRestore = null;
+let doorPanels = [];
+let activeDoorIndex = 0;
+let deferredInstallPrompt = null;
+
 // ── INIT ──────────────────────────────────────────────
-document.getElementById('footer-date').textContent =
-  new Date().toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'numeric'});
-// Set today's date
-const d = new Date();
-document.getElementById('field-datum').value =
-  d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+// (footer-date and field-datum are set in DOMContentLoaded below)
 
 // ── DIN SELECTION ─────────────────────────────────────
 function selectDIN(side) {
@@ -2449,6 +2615,15 @@ function addMultiDoorRow() {
 // ── RESET ─────────────────────────────────────────────
 function resetForm() {
   if (!confirm('Alle Eingaben zurücksetzen?')) return;
+  // Remove all extra door panels
+  while (doorPanels.length > 1) {
+    doorPanels[doorPanels.length - 1].remove();
+    doorPanels.pop();
+  }
+  activeDoorIndex = 0;
+  updateDoorTabs();
+  switchDoor(0);
+
   document.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(el => el.value = '');
   document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => el.checked = false);
   document.querySelectorAll('.foto-slot img').forEach(img => img.remove());
@@ -2464,10 +2639,12 @@ function resetForm() {
   const d = new Date();
   document.getElementById('field-datum').value =
     d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-  // Keep the technician's name filled in if a code was already verified.
   if (verifiedEmployeeCode && EMPLOYEE_CODES[verifiedEmployeeCode]) {
     document.getElementById('field-aufgenommen').value = EMPLOYEE_CODES[verifiedEmployeeCode];
   }
+  localStorage.removeItem(AUTOSAVE_KEY);
+  localStorage.removeItem(AUTOSAVE_META_KEY);
+  updateFilenamePreview();
 }
 
   // ── PAYMENT GATE ─────────────────────────────────────
@@ -2584,10 +2761,324 @@ function resetForm() {
     }
     const startGate = document.getElementById('code-gate');
     if (startGate) startGate.classList.add('active');
+
+    // Init multi-door tabs
+    buildDoorTabsUI();
+    updateDoorTabs();
+
+    // Init autosave
+    attachAutosaveListeners();
+    // Check for autosave after a delay (lets the code gate appear first)
+    setTimeout(checkForAutosave, 2000);
+
+    // Init filename preview
+    updateFilenamePreview();
+    document.getElementById('field-projekt')?.addEventListener('input', updateFilenamePreview);
+
+    // Set footer date and today's date
+    const d = new Date();
+    const el = document.getElementById('footer-date');
+    if (el) el.textContent = d.toLocaleDateString('de-DE');
+    const datumEl = document.getElementById('field-datum');
+    if (datumEl && !datumEl.value) {
+      datumEl.value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
   });
 
 
-  // ── KOPIER- UND QUELLCODE-SCHUTZ ─────────────────────
+// ── AUTOSAVE (LocalStorage) ───────────────────────────
+// (AUTOSAVE_KEY, AUTOSAVE_META_KEY, autosaveTimer, pendingRestore declared at top)
+
+function collectFormData() {
+  const data = {};
+  try {
+    document.querySelectorAll('input[type="text"], input[type="number"], input[type="date"], textarea').forEach((el, i) => {
+      const key = (el.id || el.name || '') + '_' + i;
+      data[key] = el.value;
+    });
+    document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach((el, i) => {
+      const key = (el.id || el.name || '') + '_chk_' + i;
+      data[key] = el.checked;
+    });
+    data['__activeDoorTab'] = typeof activeDoorIndex !== 'undefined' ? activeDoorIndex : 0;
+  } catch(e) {}
+  return data;
+}
+
+function triggerAutosave() {
+  if (autosaveTimer) clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    try {
+      const data = collectFormData();
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+      const meta = { ts: Date.now(), doorCount: doorPanels.length };
+      localStorage.setItem(AUTOSAVE_META_KEY, JSON.stringify(meta));
+      flashAutosaveIndicator();
+    } catch(e) { /* storage full or unavailable */ }
+  }, 3000);
+}
+
+function flashAutosaveIndicator() {
+  const el = document.getElementById('autosave-indicator');
+  if (!el) return;
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1800);
+}
+
+function checkForAutosave() {
+  try {
+    const raw = localStorage.getItem(AUTOSAVE_KEY);
+    const metaRaw = localStorage.getItem(AUTOSAVE_META_KEY);
+    if (!raw) return;
+    const meta = metaRaw ? JSON.parse(metaRaw) : {};
+    const ageMin = meta.ts ? Math.round((Date.now() - meta.ts) / 60000) : null;
+    const banner = document.getElementById('autosave-banner');
+    const msg = document.getElementById('autosave-banner-msg');
+    if (ageMin !== null) {
+      msg.textContent = ageMin < 60
+        ? `💾 Nicht gespeicherte Eingaben von vor ${ageMin} Minuten gefunden`
+        : `💾 Nicht gespeicherte Eingaben gefunden – zum Wiederherstellen klicken`;
+    }
+    pendingRestore = raw;
+    banner.classList.add('visible', 'restore');
+  } catch(e) {}
+}
+
+function restoreAutosave() {
+  if (!pendingRestore) return;
+  try {
+    const data = JSON.parse(pendingRestore);
+    const inputs = document.querySelectorAll('input[type="text"], input[type="number"], input[type="date"], textarea');
+    const checks = document.querySelectorAll('input[type="checkbox"], input[type="radio"]');
+    inputs.forEach((el, i) => {
+      const key = (el.id || el.name || '') + '_' + i;
+      if (data[key] !== undefined) el.value = data[key];
+    });
+    checks.forEach((el, i) => {
+      const key = (el.id || el.name || '') + '_chk_' + i;
+      if (data[key] !== undefined) el.checked = data[key];
+    });
+  } catch(e) {}
+  dismissAutosave();
+  updateFilenamePreview();
+}
+
+function dismissAutosave() {
+  const banner = document.getElementById('autosave-banner');
+  banner.classList.remove('visible', 'restore');
+  pendingRestore = null;
+  localStorage.removeItem(AUTOSAVE_KEY);
+  localStorage.removeItem(AUTOSAVE_META_KEY);
+}
+
+// Attach autosave listener to all inputs
+function attachAutosaveListeners() {
+  document.addEventListener('input', () => triggerAutosave());
+  document.addEventListener('change', () => triggerAutosave());
+}
+
+// ── MULTI-DOOR TABS ───────────────────────────────────
+// (doorPanels, activeDoorIndex declared at top)
+
+function buildDoorTabsUI() {
+  // Just register the existing main-form as panel 0 - don't modify it to avoid breaking canvas init
+  const mainForm = document.getElementById('main-form');
+  if (!mainForm) return;
+  mainForm.classList.add('door-panel', 'active');
+  mainForm.setAttribute('data-door-index', '0');
+  doorPanels = [mainForm];
+}
+
+function switchDoor(idx) {
+  if (idx < 0 || idx >= doorPanels.length) return;
+  doorPanels.forEach((p, i) => {
+    p.classList.toggle('active', i === idx);
+  });
+  document.querySelectorAll('.door-tab[data-door-tab]').forEach((tab, i) => {
+    tab.classList.toggle('active', i === idx);
+  });
+  activeDoorIndex = idx;
+  updateDoorTabs();
+}
+
+function addNewDoor() {
+  const doorNum = doorPanels.length + 1;
+  const mainForm = document.getElementById('main-form');
+  // Deep clone
+  const newPanel = mainForm.cloneNode(true);
+  newPanel.id = 'main-form-door-' + doorNum;
+  newPanel.classList.remove('active');
+  newPanel.setAttribute('data-door-index', doorPanels.length);
+
+  // Completely remove all canvas elements from clone (they can't be cloned with state)
+  newPanel.querySelectorAll('canvas').forEach(c => c.remove());
+
+  // Remove draw toolbars and sign buttons that reference canvas functions
+  newPanel.querySelectorAll('.draw-toolbar, .sign-clear-btn').forEach(el => el.remove());
+
+  // Clear door-specific fields (keep project/address/client)
+  const keepIds = ['field-projekt', 'field-adresse', 'field-datum', 'field-aufgenommen'];
+  newPanel.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(el => {
+    if (!keepIds.includes(el.id)) el.value = '';
+  });
+  newPanel.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(el => el.checked = false);
+  newPanel.querySelectorAll('.foto-slot img').forEach(img => img.remove());
+  newPanel.querySelectorAll('.foto-slot .icon, .foto-slot label').forEach(el => { if(el) el.style.display = ''; });
+  newPanel.querySelectorAll('.din-card').forEach(c => c.classList.remove('selected'));
+  newPanel.querySelectorAll('[id="multidoor-block"]').forEach(b => { b.style.display = 'none'; });
+  newPanel.querySelectorAll('[id="multidoor-list"]').forEach(l => { l.innerHTML = ''; });
+
+  // Fix duplicate IDs - prefix with door number
+  newPanel.querySelectorAll('[id]').forEach(el => {
+    el.id = 'door' + doorNum + '_' + el.id;
+  });
+
+  // Sync project fields from door 0
+  const syncFields = ['field-projekt', 'field-adresse', 'field-datum', 'field-aufgenommen'];
+  syncFields.forEach(fid => {
+    const src = document.getElementById(fid);
+    const dst = newPanel.querySelector('[id$="_' + fid + '"]') || newPanel.querySelector('#door' + doorNum + '_' + fid);
+    if (src && dst) dst.value = src.value;
+  });
+
+  // Auto-increment Pos.-Nr.
+  const posInput = newPanel.querySelector('.header-ids .id-field:last-child input');
+  if (posInput) posInput.value = String(doorNum).padStart(2, '0');
+
+  // Fix DIN card onclick handlers (they use hardcoded 'din-l'/'din-r' IDs)
+  const dinL = newPanel.querySelector('[id$="_din-l"]');
+  const dinR = newPanel.querySelector('[id$="_din-r"]');
+  if (dinL) dinL.onclick = null;
+  if (dinR) dinR.onclick = null;
+
+  // Fix GPS button
+  const gpsBtn = newPanel.querySelector('[id$="_gps-btn"]');
+  if (gpsBtn) gpsBtn.disabled = false;
+
+  mainForm.parentNode.insertBefore(newPanel, mainForm.nextSibling);
+  doorPanels.push(newPanel);
+
+  const newIdx = doorPanels.length - 1;
+  updateDoorTabs();
+  switchDoor(newIdx);
+  triggerAutosave();
+}
+
+function removeDoor(idx) {
+  if (doorPanels.length <= 1) return;
+  if (!confirm('Tür ' + (idx + 1) + ' löschen?')) return;
+  doorPanels[idx].remove();
+  doorPanels.splice(idx, 1);
+  // Re-index remaining panels
+  doorPanels.forEach((p, i) => p.setAttribute('data-door-index', i));
+  const newActive = Math.min(activeDoorIndex, doorPanels.length - 1);
+  activeDoorIndex = newActive;
+  updateDoorTabs();
+  switchDoor(newActive);
+  triggerAutosave();
+}
+
+function updateDoorTabs() {
+  const bar = document.getElementById('door-tabs-bar');
+  bar.querySelectorAll('[data-door-tab]').forEach(t => t.remove());
+  const addBtn = bar.querySelector('.add-tab');
+
+  doorPanels.forEach((panel, i) => {
+    const tab = document.createElement('button');
+    tab.className = 'door-tab' + (i === activeDoorIndex ? ' active' : '');
+    tab.setAttribute('data-door-tab', i);
+    tab.onclick = () => switchDoor(i);
+    // First tab is always "Tür aktuell", additional tabs are "Tür 2", "Tür 3" etc.
+    const labelText = (i === 0) ? 'Tür aktuell' : ('Tür ' + (i + 1));
+    const label = document.createTextNode(labelText + ' ');
+    tab.appendChild(label);
+    if (doorPanels.length > 1) {
+      const closeSpan = document.createElement('span');
+      closeSpan.className = 'tab-close';
+      closeSpan.textContent = '×';
+      closeSpan.onclick = (e) => { e.stopPropagation(); removeDoor(i); };
+      tab.appendChild(closeSpan);
+    }
+    bar.insertBefore(tab, addBtn);
+  });
+}
+
+// ── MASSKONTROLLE / PLAUSIBILITÄTSPRÜFUNG ────────────
+function checkMassPlausibility() {
+  const allInputs = document.querySelectorAll('.mass-input');
+  // Find Türblatt-Breite (first mass-input in Türblatt group) and Rohmaß-Breite
+  const tuerblattGroup = document.querySelector('.mass-group:first-child');
+  const zargenGroup = document.querySelector('.mass-group:nth-child(3)');
+  if (!tuerblattGroup || !zargenGroup) return;
+
+  const bInputs = tuerblattGroup.querySelectorAll('.mass-input');
+  const zInputs = zargenGroup.querySelectorAll('.mass-input');
+
+  const tuerB = parseFloat(bInputs[0]?.value);
+  const rohB = parseFloat(zInputs[4]?.value); // Rohmaß Breite
+  const warn = document.getElementById('val-mass-warn');
+  if (warn && !isNaN(tuerB) && !isNaN(rohB) && tuerB > rohB) {
+    warn.classList.add('visible');
+    bInputs[0]?.classList.add('warn');
+  } else if (warn) {
+    warn.classList.remove('visible');
+    bInputs[0]?.classList.remove('warn');
+  }
+}
+
+// Attach validation on input events
+document.addEventListener('input', (e) => {
+  if (e.target.classList.contains('mass-input')) {
+    checkMassPlausibility();
+  }
+  updateFilenamePreview();
+});
+
+// ── DATEINAME-VORSCHAU ────────────────────────────────
+function updateFilenamePreview() {
+  const projektEl = document.getElementById('field-projekt');
+  const projekt = (projektEl && projektEl.value.trim().replace(/[^a-zA-Z0-9äöüÄÖÜß\-_]/g, '_').substring(0, 20)) || 'Aufmass';
+  const dateFile = new Date().toISOString().slice(0, 10);
+  const preview = document.getElementById('pdf-filename-preview');
+  if (preview) preview.textContent = `Tuerblatt_${projekt}_${dateFile}.pdf`;
+}
+
+// ── PWA / INSTALL PROMPT ──────────────────────────────
+// (deferredInstallPrompt declared at top)
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Only show if not dismissed recently
+  const dismissed = localStorage.getItem('pwa_dismissed');
+  if (!dismissed || (Date.now() - parseInt(dismissed)) > 7 * 24 * 3600000) {
+    setTimeout(() => {
+      const prompt = document.getElementById('pwa-prompt');
+      if (prompt) prompt.classList.add('visible');
+    }, 4000);
+  }
+});
+
+function installPWA() {
+  const prompt = document.getElementById('pwa-prompt');
+  if (prompt) prompt.classList.remove('visible');
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(() => { deferredInstallPrompt = null; });
+  }
+}
+
+function dismissPWA() {
+  const prompt = document.getElementById('pwa-prompt');
+  if (prompt) prompt.classList.remove('visible');
+  localStorage.setItem('pwa_dismissed', Date.now());
+}
+
+// ── SERVICE WORKER (Offline-Fähigkeit) ───────────────
+// Note: Blob-URL service workers are blocked on GitHub Pages (cross-origin).
+// PWA install prompt still works for "Add to Homescreen" without a SW.
+// A proper sw.js would need to be deployed alongside index.html.
+
+
   (function() {
     // Rechtsklick deaktivieren
     document.addEventListener('contextmenu', function(e) {
